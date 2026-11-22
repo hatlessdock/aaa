@@ -5,16 +5,66 @@ import { Container, Card, Button } from 'react-bootstrap';
 
 import FormField from '../components/molecules/FormField.jsx';
 import Input from '../components/atoms/Input.jsx';
-import { esMayorDeEdad } from '../data/Products.js';
 import AuthService from '../services/AuthService.js';
 
 const PATRON_CORREO = /^[a-zA-Z0-9._%+-]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.com)$/i;
 
+function formatearFechaInput(fecha) {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+function obtenerLimitesEdad(edadMin = 18, edadMax = 100) {
+  const hoy = new Date();
+  const fechaMax = new Date(hoy.getFullYear() - edadMin, hoy.getMonth(), hoy.getDate());
+  const fechaMin = new Date(hoy.getFullYear() - edadMax, hoy.getMonth(), hoy.getDate());
+  return {
+    min: formatearFechaInput(fechaMin),
+    max: formatearFechaInput(fechaMax),
+  };
+}
+
+function validarFechaRegistro(fechaStr, edadMin = 18, edadMax = 100) {
+  if (!fechaStr) {
+    return 'Debes ingresar tu fecha de nacimiento.';
+  }
+
+  const partes = fechaStr.split('-');
+  if (partes.length !== 3) {
+    return 'Ingresa una fecha de nacimiento válida.';
+  }
+
+  const anio = Number(partes[0]);
+  const mes = Number(partes[1]);
+  const dia = Number(partes[2]);
+  const hoy = new Date();
+
+  let edad = hoy.getFullYear() - anio;
+  const difMes = hoy.getMonth() + 1 - mes;
+  if (difMes < 0 || (difMes === 0 && hoy.getDate() < dia)) {
+    edad = edad - 1;
+  }
+
+  if (edad < edadMin) {
+    return 'Debes ser mayor de 18 años para crear una cuenta.';
+  }
+
+  if (edad > edadMax) {
+    return `Ingresa una fecha de nacimiento real (máximo ${edadMax} años).`;
+  }
+
+  return '';
+}
+
 export function Registro() {
   const navigate = useNavigate();
+  const limitesEdad = obtenerLimitesEdad(18, 100);
   const [errorGeneral, setErrorGeneral] = useState('');
   const [errorPass2, setErrorPass2] = useState('');
   const [errorEdad, setErrorEdad] = useState('');
+  const [cargando, setCargando] = useState(false);
 
   const {
     register,
@@ -35,8 +85,9 @@ export function Registro() {
     setErrorPass2('');
     setErrorEdad('');
 
-    if (!esMayorDeEdad(data.fechaNacimiento)) {
-      setErrorEdad('Debes ser mayor de 18 años para crear una cuenta.');
+    const mensajeEdad = validarFechaRegistro(data.fechaNacimiento, 18, 100);
+    if (mensajeEdad) {
+      setErrorEdad(mensajeEdad);
       return;
     }
 
@@ -45,6 +96,7 @@ export function Registro() {
       return;
     }
 
+    setCargando(true);
     try {
       const response = await AuthService.registro({
         nombre: data.nombre,
@@ -53,14 +105,17 @@ export function Registro() {
         fechaNacimiento: data.fechaNacimiento,
       });
 
-      if (response.data?.ok === false) {
-        setErrorGeneral('Este correo ya está registrado.');
+      if (response?.ok === false) {
+        setErrorGeneral(response.error || 'Este correo ya está registrado.');
         return;
       }
 
       navigate('/login');
     } catch (error) {
-      setErrorGeneral('Error al registrar usuario. Intenta nuevamente.');
+      const mensajeBackend = error.response?.data?.error;
+      setErrorGeneral(mensajeBackend || 'Error al registrar usuario. Intenta nuevamente.');
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -115,11 +170,13 @@ export function Registro() {
                   htmlFor="reg-fecha"
                   label="Fecha de nacimiento"
                   error={errors.fechaNacimiento?.message || errorEdad}
-                  hint="Venta exclusiva para mayores de 18 años."
+                  hint="Venta exclusiva para mayores de 18 años (rango válido: 18 a 100 años)."
                 >
                   <Input
                     id="reg-fecha"
                     type="date"
+                    min={limitesEdad.min}
+                    max={limitesEdad.max}
                     className={errors.fechaNacimiento || errorEdad ? 'is-invalid' : ''}
                     {...register('fechaNacimiento', {
                       required: 'Debes ingresar tu fecha de nacimiento.',
@@ -170,8 +227,8 @@ export function Registro() {
                   </div>
                 </div>
 
-                <Button type="submit" variant="primary" className="w-100 mt-3">
-                  Registrarme
+                <Button type="submit" variant="primary" className="w-100 mt-3" disabled={cargando}>
+                  {cargando ? 'Registrando...' : 'Registrarme'}
                 </Button>
               </form>
 

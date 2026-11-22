@@ -7,18 +7,67 @@ import {
   obtenerSesion,
   precioSocio,
   formatoClp,
-  esMayorDeEdad,
 } from '../data/Products.js';
 import OrdenService from '../services/OrdenService.js';
 
 const CLAVE_RESUMEN = 'resumenCompra';
 const PATRON_CORREO = /^[a-zA-Z0-9._%+-]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.com)$/i;
 
+function formatearFechaInput(fecha) {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+function obtenerLimitesEdad(edadMin = 18, edadMax = 100) {
+  const hoy = new Date();
+  const fechaMax = new Date(hoy.getFullYear() - edadMin, hoy.getMonth(), hoy.getDate());
+  const fechaMin = new Date(hoy.getFullYear() - edadMax, hoy.getMonth(), hoy.getDate());
+  return {
+    min: formatearFechaInput(fechaMin),
+    max: formatearFechaInput(fechaMax),
+  };
+}
+
+function validarFechaNacimiento(fechaStr, edadMin = 18, edadMax = 100) {
+  if (!fechaStr) {
+    return 'Debes ingresar tu fecha de nacimiento.';
+  }
+
+  const partes = fechaStr.split('-');
+  if (partes.length !== 3) {
+    return 'Ingresa una fecha de nacimiento válida.';
+  }
+
+  const anio = Number(partes[0]);
+  const mes = Number(partes[1]);
+  const dia = Number(partes[2]);
+  const hoy = new Date();
+
+  let edad = hoy.getFullYear() - anio;
+  const difMes = hoy.getMonth() + 1 - mes;
+  if (difMes < 0 || (difMes === 0 && hoy.getDate() < dia)) {
+    edad = edad - 1;
+  }
+
+  if (edad < edadMin) {
+    return 'Debes ser mayor de 18 años para comprar bebidas alcohólicas.';
+  }
+
+  if (edad > edadMax) {
+    return `Ingresa una fecha de nacimiento real (máximo ${edadMax} años).`;
+  }
+
+  return '';
+}
+
 export function Checkout() {
   const carrito = obtenerCarrito();
   const sesion = obtenerSesion();
   const total = totalCarrito(sesion);
   const navigate = useNavigate();
+  const limitesEdad = obtenerLimitesEdad(18, 100);
 
   const [modoInvitado, setModoInvitado] = useState(false);
 
@@ -134,15 +183,10 @@ export function Checkout() {
         'Correo inválido. Usa un correo @duoc.cl, @profesor.duoc.cl o @gmail.com.';
     }
     if (!sesion) {
-      if (!fechaNacimiento) {
-        nuevosErrores.fechaNacimiento = 'Debes ingresar tu fecha de nacimiento.';
-      } else if (!esMayorDeEdad(fechaNacimiento)) {
-        nuevosErrores.fechaNacimiento =
-          'Debes ser mayor de 18 años para comprar bebidas alcohólicas.';
+      const errorFecha = validarFechaNacimiento(fechaNacimiento, 18, 100);
+      if (errorFecha) {
+        nuevosErrores.fechaNacimiento = errorFecha;
       }
-    } else if (fechaNacimiento && !esMayorDeEdad(fechaNacimiento)) {
-      nuevosErrores.fechaNacimiento =
-        'Debes ser mayor de 18 años para comprar bebidas alcohólicas.';
     }
 
     if (entrega === 'domicilio' && !direccion.trim()) {
@@ -249,21 +293,29 @@ export function Checkout() {
                   <div className="invalid-feedback">{errores.email}</div>
                 </div>
 
-                <div className="mb-3">
-                  <label htmlFor="co-fecha" className="form-label">
-                    Fecha de nacimiento (Verificación +18 años)
-                  </label>
-                  <input
-                    id="co-fecha"
-                    type="date"
-                    className={`form-control ${
-                      errores.fechaNacimiento ? 'is-invalid' : ''
-                    }`}
-                    value={fechaNacimiento}
-                    onChange={(e) => setFechaNacimiento(e.target.value)}
-                  />
-                  <div className="invalid-feedback">{errores.fechaNacimiento}</div>
-                </div>
+                {sesion ? (
+                  <div className="alert alert-success py-2 small mb-3">
+                    ✓ Mayoría de edad (+18) ya verificada en tu cuenta de socio.
+                  </div>
+                ) : (
+                  <div className="mb-3">
+                    <label htmlFor="co-fecha" className="form-label">
+                      Fecha de nacimiento (Verificación +18 años)
+                    </label>
+                    <input
+                      id="co-fecha"
+                      type="date"
+                      min={limitesEdad.min}
+                      max={limitesEdad.max}
+                      className={`form-control ${
+                        errores.fechaNacimiento ? 'is-invalid' : ''
+                      }`}
+                      value={fechaNacimiento}
+                      onChange={(e) => setFechaNacimiento(e.target.value)}
+                    />
+                    <div className="invalid-feedback">{errores.fechaNacimiento}</div>
+                  </div>
+                )}
 
                 <div className="mb-3">
                   <span className="form-label d-block">Tipo de entrega</span>
