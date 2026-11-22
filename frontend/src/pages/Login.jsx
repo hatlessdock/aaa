@@ -13,6 +13,7 @@ const PATRON_CORREO = /^[a-zA-Z0-9._%+-]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.co
 export function Login() {
   const navigate = useNavigate();
   const [errorLogin, setErrorLogin] = useState('');
+  const [cargando, setCargando] = useState(false);
   const {
     register,
     handleSubmit,
@@ -21,22 +22,47 @@ export function Login() {
 
   const onSubmit = async (data) => {
     setErrorLogin('');
+    setCargando(true);
 
     try {
       const response = await AuthService.login(data);
-      const usuario = response.data?.usuario ?? response.data;
+
+      let usuario = null;
+      if (response && response.usuario) {
+        usuario = response.usuario;
+      } else if (response && response.data && response.data.usuario) {
+        usuario = response.data.usuario;
+      } else if (response && response.email) {
+        usuario = response;
+      }
+
       if (!usuario) {
         setErrorLogin('Email o contraseña incorrectos.');
         return;
       }
 
-      iniciarSesion({ nombre: usuario.nombre, email: usuario.email, rol: usuario.rol });
+      iniciarSesion({
+        id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+      });
+
       if (window.actualizarNavbar) {
         window.actualizarNavbar();
       }
       navigate('/');
     } catch (error) {
-      setErrorLogin('Email o contraseña incorrectos.');
+      const status = error.response?.status;
+      if (status === 401 || status === 400) {
+        setErrorLogin('Email o contraseña incorrectos.');
+      } else {
+        setErrorLogin(
+          'El servidor está despertando o tardó demasiado. Intenta nuevamente en unos segundos.'
+        );
+      }
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -95,8 +121,8 @@ export function Login() {
                   />
                 </FormField>
 
-                <Button type="submit" variant="primary" className="w-100">
-                  Entrar
+                <Button type="submit" variant="primary" className="w-100" disabled={cargando}>
+                  {cargando ? 'Conectando...' : 'Entrar'}
                 </Button>
               </form>
 
