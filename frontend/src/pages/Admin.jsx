@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  obtenerProductos,
   guardarProductos,
   categoriasIniciales,
   formatoClp,
-  obtenerOrdenes,
   obtenerUsuarios,
 } from '../data/Products.js';
 import ProductoService from '../services/ProductoService.js';
@@ -33,7 +31,10 @@ export function Admin() {
   const fetchProductos = async () => {
     try {
       const data = await ProductoService.getAllProductos();
-      setProductos(data);
+      if (Array.isArray(data)) {
+        setProductos(data);
+        guardarProductos(data);
+      }
     } catch (error) {
       console.log('Error fetching productos:', error);
     }
@@ -42,7 +43,11 @@ export function Admin() {
   const fetchOrdenes = async () => {
     try {
       const data = await OrdenService.listarOrdenes();
-      setOrdenes(data);
+      if (Array.isArray(data)) {
+        setOrdenes(data);
+      } else {
+        setOrdenes([]);
+      }
     } catch (error) {
       console.log('Error fetching ordenes:', error);
     }

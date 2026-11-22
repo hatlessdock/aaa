@@ -7,6 +7,7 @@ import Image from '../components/atoms/Image.jsx';
 import Button from '../components/atoms/Button.jsx';
 import {
   obtenerProductos,
+  guardarProductos,
   obtenerSesion,
   agregarAlCarrito,
   esElegido,
@@ -20,15 +21,15 @@ export function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [productos, setProductos] = useState(obtenerProductos());
-  const producto = productos.find((p) => p.id === parseInt(id));
+  const producto = productos.find((p) => Number(p.id) === Number(id));
   const sesion = obtenerSesion();
 
   useEffect(() => {
     ProductoService.getAllProductos()
-      .then((response) => {
-        if (Array.isArray(response.data)) {
-          setProductos(response.data);
-          guardarProductos(response.data);
+      .then((lista) => {
+        if (Array.isArray(lista) && lista.length > 0) {
+          setProductos(lista);
+          guardarProductos(lista);
         }
       })
       .catch((error) => {

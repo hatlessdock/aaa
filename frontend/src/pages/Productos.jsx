@@ -18,10 +18,10 @@ export function Productos() {
 
   const fetchProductos = () => {
     ProductoService.getAllProductos()
-      .then((response) => {
-        if (Array.isArray(response.data)) {
-          setProductos(response.data);
-          guardarProductos(response.data);
+      .then((lista) => {
+        if (Array.isArray(lista) && lista.length > 0) {
+          setProductos(lista);
+          guardarProductos(lista);
         }
       })
       .catch((error) => {

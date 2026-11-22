@@ -15,16 +15,16 @@ export function Home() {
   });
 
   useEffect(() => {
-    ProductoService.getAllProductos()
-      .then((response) => {
-        if (Array.isArray(response.data)) {
-          setProductos(response.data);
-          guardarProductos(response.data);
-        }
-      })
-      .catch((error) => {
-        console.log('Error al obtener productos del backend:', error);
-      });
+  ProductoService.getAllProductos()
+    .then((lista) => {
+      if (Array.isArray(lista) && lista.length > 0) {
+        setProductos(lista);
+        guardarProductos(lista);
+      }
+    })
+    .catch((error) => {
+      console.log('Error al obtener productos del backend:', error);
+    });
   }, []);
 
   const destacados = productos.slice(0, 3);
