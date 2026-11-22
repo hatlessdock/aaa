@@ -112,8 +112,22 @@ export function Registro() {
 
       navigate('/login');
     } catch (error) {
-      const mensajeBackend = error.response?.data?.error;
-      setErrorGeneral(mensajeBackend || 'Error al registrar usuario. Intenta nuevamente.');
+      const dataError = error.response?.data;
+
+      if (dataError && dataError.campos) {
+        const mensajes = Object.values(dataError.campos);
+        if (mensajes.length > 0) {
+          setErrorGeneral(mensajes.join(' '));
+          return;
+        }
+      }
+
+      const mensajeBackend = dataError?.error;
+      if (mensajeBackend && mensajeBackend.includes('invñlidos')) {
+        setErrorGeneral('Datos inválidos. Revisa los campos e intenta nuevamente.');
+      } else {
+        setErrorGeneral(mensajeBackend || 'Error al registrar usuario. Intenta nuevamente.');
+      }
     } finally {
       setCargando(false);
     }
